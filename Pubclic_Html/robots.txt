@@ -1,0 +1,45 @@
+User-agent: *
+Allow: /
+Allow: /catalog
+Allow: /product/
+Allow: /search
+Allow: /about
+Allow: /contact
+Allow: /custom-synthesis
+Allow: /purification
+
+# Block admin, API internals, and account pages from indexing
+Disallow: /admin
+Disallow: /admin_products
+Disallow: /admin_suppliers
+Disallow: /admin_listings
+Disallow: /admin.php
+Disallow: /api_data.php
+Disallow: /api_stereo.php
+Disallow: /api_autocomplete.php
+Disallow: /api_structure_search.php
+Disallow: /api_product.php
+Disallow: /pubchem_fetch.php
+Disallow: /signin
+Disallow: /signup
+Disallow: /profile
+Disallow: /account
+Disallow: /dashboard
+Disallow: /cart
+Disallow: /checkout
+Disallow: /order-detail
+Disallow: /order-confirmation
+Disallow: /quote-detail
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+Disallow: /logout
+Disallow: /backup_db.php
+Disallow: /cron_cleanup.php
+Disallow: /export_products.php
+Disallow: /health.php
+Disallow: /test_*
+Disallow: /update_*
+
+# Sitemap
+Sitemap: https://www.abchem.co.in/sitemap.xml
