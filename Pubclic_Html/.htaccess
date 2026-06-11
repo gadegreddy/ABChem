@@ -1,0 +1,238 @@
+# ────────────────────────────────────────────────────────────────────────────
+# AB Chem India - Production .htaccess
+# Database-driven version | PHP 8.2+ | MySQL
+# ────────────────────────────────────────────────────────────────────────────
+
+# ─── SECURITY HEADERS ───────────────────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+    # ── Item 12: HTTP/2 Server Push / Preload hints for critical CSS (~200-400ms faster) ──
+    Header add Link "</styles.css>; rel=preload; as=style"
+
+    # ── Item 15: CSP-Report-Only runs in parallel to collect real violation data ──
+    Header always set Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https: wss: https://pubchem.ncbi.nlm.nih.gov https://www.ebi.ac.uk https://www.zohoapis.in; frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; report-uri /csp-report"
+
+    # ── Item 2: STRICT CSP — applied to all pages (no unsafe-eval) ──
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https: wss: https://pubchem.ncbi.nlm.nih.gov https://www.ebi.ac.uk https://www.zohoapis.in; frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests"
+
+    # Cache static assets
+    <FilesMatch "\.(ico|pdf|flv|jpg|jpeg|png|gif|js|css|swf|svg|woff2?)$">
+        Header set Cache-Control "max-age=31536000, public, immutable"
+    </FilesMatch>
+</IfModule>
+
+# ── Item 2: Relaxed CSP override for structure-search pages (JSME requires unsafe-eval) ──
+<IfModule mod_headers.c>
+    <FilesMatch "^(structure-search|api_structure_search)\.php$">
+        Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: https: blob:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https: wss: https://pubchem.ncbi.nlm.nih.gov https://www.ebi.ac.uk https://www.zohoapis.in; frame-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests"
+    </FilesMatch>
+</IfModule>
+
+# ─── DIRECTORY SECURITY ──────────────────────────────────────────────────────
+Options -Indexes -MultiViews
+DirectoryIndex index.php
+
+# Block direct access to sensitive PHP includes
+<FilesMatch "^(db_config|functions|zoho_helper|totp|cron_cleanup)\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<FilesMatch "\.(json|log|bak|tmp|sql|env|cache|ini|sh|py)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Block dev/debug PHP files that must never run in production
+<FilesMatch "^(backup_db|test_error|test_structure_image|test_chem_image)\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+<Files "zoho_token.json">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</Files>
+
+<FilesMatch "^(\.env|\.git|composer\.(json|lock)|package\.json|package-lock\.json)">
+    Require all denied
+</FilesMatch>
+
+# ─── PHP HARDENING ───────────────────────────────────────────────────────────
+<IfModule mod_php.c>
+    php_flag session.cookie_httponly On
+    php_flag session.cookie_secure On
+    php_flag session.use_only_cookies On
+    php_flag session.use_strict_mode On
+    php_value session.cookie_samesite "Strict"
+    php_value upload_max_filesize 10M
+    php_value post_max_size 12M
+    php_value max_execution_time 60
+    php_flag expose_php Off
+    php_flag display_errors Off
+    php_flag display_startup_errors Off
+    php_flag log_errors On
+    php_value error_log /home/u670463068/domains/abchem.co.in/error_log
+</IfModule>
+
+# ─── REWRITE ENGINE ──────────────────────────────────────────────────────────
+RewriteEngine On
+RewriteBase /
+
+# Force HTTPS + www (canonical)
+RewriteCond %{HTTPS} off [OR]
+RewriteCond %{HTTP_HOST} !^www\.abchem\.co\.in$ [NC]
+RewriteRule ^(.*)$ https://www.abchem.co.in/$1 [L,R=301]
+
+# Remove trailing slashes (except directories)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} (.+)/$
+RewriteRule ^ %1 [R=301,L]
+
+# External redirect: .php to clean URL
+RewriteCond %{THE_REQUEST} \s/([^\s]+?)\.php[\s?] [NC]
+RewriteRule ^ /%1 [R=301,L]
+
+# Skip existing files/directories
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# ─── CLEAN URL ROUTES ────────────────────────────────────────────────────────
+RewriteRule ^signin$                  signin.php [L,QSA,NC]
+RewriteRule ^signup$                  signup.php [L,QSA,NC]
+RewriteRule ^logout$                  logout.php [L,QSA,NC]
+RewriteRule ^admin$                   admin.php [L,QSA,NC]
+RewriteRule ^catalog$                 catalog.php [L,QSA,NC]
+RewriteRule ^contact$                 contact.php [L,QSA,NC]
+RewriteRule ^about$                   about.php [L,QSA,NC]
+RewriteRule ^terms$                   terms.php [L,QSA,NC]
+RewriteRule ^privacy$                 privacy.php [L,QSA,NC]
+RewriteRule ^refund$                  refund.php [L,QSA,NC]
+RewriteRule ^shipping$                shipping.php [L,QSA,NC]
+RewriteRule ^profile$                 profile.php [L,QSA,NC]
+RewriteRule ^account$                 dashboard.php [L,QSA,NC]
+RewriteRule ^cart$                    cart.php [L,QSA,NC]
+RewriteRule ^dashboard$               dashboard.php [L,QSA,NC]
+RewriteRule ^quote-detail$            quote-detail.php [L,QSA,NC]
+RewriteRule ^customer-dashboard$      customer_dashboard.php [L,QSA,NC]
+RewriteRule ^my-quotes$               customer_dashboard.php?tab=quotes [L,QSA,NC]
+RewriteRule ^my-orders$               customer_dashboard.php?tab=orders [L,QSA,NC]
+RewriteRule ^order-confirmation$      order-confirmation.php [L,QSA,NC]
+RewriteRule ^order-detail$            order-detail.php [L,QSA,NC]
+RewriteRule ^invoice_pdf_no_composer$ invoice_pdf_no_composer.php [L,QSA,NC]
+RewriteRule ^invoice-print$           invoice_pdf_no_composer.php [L,QSA,NC]
+RewriteRule ^custom-synthesis$        custom-synthesis.php [L,QSA,NC]
+RewriteRule ^purification$            purification.php [L,QSA,NC]
+RewriteRule ^fine-chemicals$          fine-chemicals.php [L,QSA,NC]
+RewriteRule ^consumables$             consumables.php [L,QSA,NC]
+RewriteRule ^structure-search$        structure-search.php [L,QSA,NC]
+RewriteRule ^forgot-password$         forgot-password.php [L,QSA,NC]
+RewriteRule ^reset-password$          reset-password.php [L,QSA,NC]
+RewriteRule ^verify-email$            verify-email.php [L,QSA,NC]
+RewriteRule ^admin-custom-fields$     admin_custom_fields.php [L,QSA,NC]
+RewriteRule ^admin-products$          admin_products.php [L,QSA,NC]
+RewriteRule ^admin-2fa-setup$         admin_2fa_setup.php [L,QSA,NC]
+RewriteRule ^pubchem-fetch$           pubchem_fetch.php [L,QSA,NC]
+RewriteRule ^zoho-connect$            zoho_helper.php?connect=1 [L,QSA,NC]
+RewriteRule ^export-products$         export_products.php [L,QSA,NC]
+RewriteRule ^health$                  health.php [L,QSA,NC]
+RewriteRule ^admin-run-migration$     admin_run_migration.php [L,QSA,NC]
+RewriteRule ^csp-report$              csp_report.php [L,QSA,NC]
+RewriteRule ^error$                   error.php [L,QSA,NC]
+RewriteRule ^sitemap\.xml$            sitemap.php [L,NC]
+
+# ─── PRODUCT URLS ────────────────────────────────────────────────────────────
+# Redirect legacy ?slug= query-string URLs to clean path
+RewriteCond %{THE_REQUEST} \s/(product|product\.php)\?slug=([^&\s]+)\s [NC]
+RewriteRule ^ /product/%2? [R=301,L]
+
+# Two-segment URL: /product/name-slug/ABC00008ZG-D910AB
+# The name-slug segment is cosmetic/SEO — only the catalog-token is passed to PHP.
+RewriteRule ^product/[^/]+/([^/?]+)$  product.php?slug=$1 [L,QSA,B,NC]
+
+# Single-segment URL: /product/ABC00008ZG-D910AB  (legacy or text slug)
+RewriteRule ^product/([^/?]+)$         product.php?slug=$1 [L,QSA,B,NC]
+RewriteRule ^product/?$                catalog.php [L,R=301]
+
+# ─── API ENDPOINTS ───────────────────────────────────────────────────────────
+RewriteRule ^api/autocomplete$        api_autocomplete.php [L,QSA,NC]
+RewriteRule ^api/data$                api_data.php [L,QSA,NC]
+RewriteRule ^api/product$             api_product.php [L,QSA,NC]
+
+# ─── HONEYPOT (FEAT-29) ──────────────────────────────────────────────────────
+RewriteRule ^catalog-all$  honeypot.php [L,NC]
+
+# ─── PHARMACOPEIA PAGES (FEAT-31c) ───────────────────────────────────────────
+RewriteRule ^pharmacopeia/([a-z]+)/([a-z0-9-]+)$  pharmacopeia.php?standard=$1&compound=$2 [L,QSA,NC]
+
+# ─── PHARMA ENRICH API (FEAT-31c) ────────────────────────────────────────────
+RewriteRule ^api/pharma-enrich$  api_pharma_enrich.php [L,QSA,NC]
+
+# ─── GENERIC FALLBACK (must be LAST) ─────────────────────────────────────────
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{DOCUMENT_ROOT}/$1.php -f
+RewriteRule ^(.+?)/?$ $1.php [L,QSA]
+
+# ─── ERROR PAGES ─────────────────────────────────────────────────────────────
+ErrorDocument 400 /error.php?code=400
+ErrorDocument 401 /error.php?code=401
+ErrorDocument 403 /error.php?code=403
+ErrorDocument 404 /error.php?code=404
+ErrorDocument 500 /error.php?code=500
+ErrorDocument 503 /error.php?code=503
+
+# ─── COMPRESSION ─────────────────────────────────────────────────────────────
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript
+    AddOutputFilterByType DEFLATE application/javascript application/json application/xml
+    AddOutputFilterByType DEFLATE application/rss+xml application/atom+xml
+    AddOutputFilterByType DEFLATE image/svg+xml font/ttf font/otf
+</IfModule>
+
+# ─── BROWSER CACHING ─────────────────────────────────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access 1 year"
+    ExpiresByType image/jpeg "access 1 year"
+    ExpiresByType image/gif "access 1 year"
+    ExpiresByType image/png "access 1 year"
+    ExpiresByType image/svg "access 1 year"
+    ExpiresByType text/css "access 1 year"
+    ExpiresByType application/pdf "access 1 month"
+    ExpiresByType application/javascript "access 1 month"
+    ExpiresByType application/x-javascript "access 1 month"
+    ExpiresByType image/x-icon "access 1 year"
+    ExpiresDefault "access 3 days"
+</IfModule>
+
+# ─── LITESPEED CACHE ─────────────────────────────────────────────────────────
+<IfModule LiteSpeed>
+    CacheDisable public /
+    CacheDisable private /
+</IfModule>
+
+# Skip Ketcher static files
+RewriteRule ^js/ketcher/ - [L]
