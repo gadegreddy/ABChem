@@ -320,6 +320,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
             "Your quote request #{$quoteNumber} for {$p['product_name']} has been submitted.", 
             "/dashboard?tab=quotes");
         
+                // Send WhatsApp notification to supplier if available, otherwise admin
+        $wa_message = "New Quote Request #{$quoteNumber} for {$p['product_name']}. Qty: {$quantity} {$unit}.";
+        if (!empty($notes)) {
+            $wa_message .= " Notes: {$notes}";
+        }
+
+        if ($supplierId > 0) {
+            // Get supplier phone number
+            $supplierData = $db->fetchOne("SELECT contact_phone FROM suppliers WHERE id = :sid", ['sid' => $supplierId]);
+            if ($supplierData && !empty($supplierData['contact_phone'])) {
+                sendWhatsAppMessage($supplierData['contact_phone'], $wa_message);
+            } else {
+                sendWhatsAppMessage(ADMIN_WHATSAPP_PHONE, "Supplier has no phone: " . $wa_message);
+            }
+        } else {
+            sendWhatsAppMessage(ADMIN_WHATSAPP_PHONE, "Unassigned Quote: " . $wa_message);
+        }
+
         logAudit('quick_order', "User created quote #{$quoteNumber} for product: {$p['product_name']}");
         
         $message = "Quote request submitted! Quote #: {$quoteNumber}";
