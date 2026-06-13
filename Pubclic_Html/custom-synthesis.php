@@ -4,6 +4,15 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
 $message_sent = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['synthesis_request'])) {
     $message_sent = true; // Placeholder: integrate mail/DB here
+
+    // Send WhatsApp Notification to Admin
+    $first_name = $_POST['first_name'] ?? '';
+    $last_name = $_POST['last_name'] ?? '';
+    $org = $_POST['org'] ?? '';
+    $compound = $_POST['compound'] ?? '';
+
+    $wa_message = "New Custom Synthesis Request from {$first_name} {$last_name} ({$org}). Compound: {$compound}";
+    sendWhatsAppMessage(ADMIN_WHATSAPP_PHONE, $wa_message);
 }
 $meta = get_seo_meta();
 ?>

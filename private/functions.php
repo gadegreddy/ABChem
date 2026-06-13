@@ -2097,3 +2097,43 @@ Please <a href='https://www.abchem.co.in/forgot-password'>reset your password</a
         } catch (\Throwable $e) { /* non-critical */ }
     }
 }
+
+// =============================================
+// WHATSAPP INTEGRATION
+// =============================================
+
+define('ADMIN_WHATSAPP_PHONE', '+910000000000'); // Update with actual admin number
+
+function sendWhatsAppMessage($phone, $message): bool {
+    // Basic validation
+    if (empty($phone) || empty($message)) return false;
+
+    $logEntry = date('Y-m-d H:i:s') . " | TO: $phone | MSG: " . str_replace(["\r", "\n"], " ", $message) . PHP_EOL;
+    file_put_contents(dirname(__DIR__) . '/private/whatsapp.log', $logEntry, FILE_APPEND);
+
+    // Ensure constants are defined before using them (e.g. in config.php)
+    if (defined('TWILIO_SID') && defined('TWILIO_TOKEN') && defined('TWILIO_WHATSAPP_NUMBER')) {
+        // Make sure phone is formatted correctly (e.g., starts with whatsapp:+)
+        $formatted_phone = 'whatsapp:' . (strpos($phone, '+') === 0 ? $phone : '+' . $phone);
+
+        $ch = curl_init("https://api.twilio.com/2010-04-01/Accounts/" . TWILIO_SID . "/Messages.json");
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_USERPWD, TWILIO_SID . ":" . TWILIO_TOKEN);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query([
+            'From' => TWILIO_WHATSAPP_NUMBER,
+            'To' => $formatted_phone,
+            'Body' => $message
+        ]));
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        // Return true if Twilio accepted the request (status 2xx)
+        if ($response) {
+            $respData = json_decode($response, true);
+            return isset($respData['sid']);
+        }
+    }
+
+    return true; // Still return true for log-only mode
+}

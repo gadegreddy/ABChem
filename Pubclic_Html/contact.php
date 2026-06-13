@@ -15,6 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $to = 'connect@abchem.co.in';
         $headers = "From: $name <$email>\r\nReply-To: $email\r\nContent-Type: text/plain; charset=UTF-8";
         $body = "Inquiry: $type\nSubject: $subject\nName: $name\nEmail: $email\n\nMessage:\n$message";
+                // Send WhatsApp Notification to Admin
+        $wa_message = "New Inquiry ($type) from $name. Subject: $subject. Reply to: $email.";
+        sendWhatsAppMessage(ADMIN_WHATSAPP_PHONE, $wa_message);
+
         if (@mail($to, "AB Chem Inquiry: $subject", $body, $headers)) {
             $msg = 'Your inquiry has been sent successfully. We will respond within 24 hours.';
         } else {
